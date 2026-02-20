@@ -16,7 +16,22 @@ LLM_API_RESPONSE_FILE="${LLM_API_RESPONSE_FILE:-/tmp/llm_api_response.txt}"
 # Read content from available source (Claude exec file takes priority)
 if [ -n "$LLM_RESPONSE_CLAUDE_EXEC_FILE" ] && [ -f "$LLM_RESPONSE_CLAUDE_EXEC_FILE" ]; then
   echo "Reading from Claude execution file: $LLM_RESPONSE_CLAUDE_EXEC_FILE" >&2
-  CONTENT=$(cat "$LLM_RESPONSE_CLAUDE_EXEC_FILE")
+  RAW=$(cat "$LLM_RESPONSE_CLAUDE_EXEC_FILE")
+  # Auto-detect: if valid JSON with .result → extract, otherwise use raw content
+  if command -v jq &>/dev/null && echo "$RAW" | jq empty 2>/dev/null; then
+    EXTRACTED=$(echo "$RAW" | jq -r '.[] | select(.type == "result") | .result' 2>/dev/null)
+    if [ -n "$EXTRACTED" ] && [ "$EXTRACTED" != "null" ]; then
+      CONTENT="$EXTRACTED"
+    else
+      CONTENT="$RAW"
+    fi
+  else
+    CONTENT="$RAW"
+  fi
+  if [ -z "$CONTENT" ]; then
+    echo "::error::Empty content from Claude execution file" >&2
+    exit 1
+  fi
 elif [ -f "$LLM_API_RESPONSE_FILE" ]; then
   echo "Reading from API response file: $LLM_API_RESPONSE_FILE" >&2
   CONTENT=$(cat "$LLM_API_RESPONSE_FILE")

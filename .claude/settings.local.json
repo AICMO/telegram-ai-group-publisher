@@ -39,7 +39,8 @@
       "Bash(python3 -c \"import yaml; yaml.safe_load\\(open\\(''.github/workflows/agent-work.yml''\\)\\); print\\(''YAML valid''\\)\")",
       "Bash(python -c:*)",
       "Bash(python:*)",
-      "Bash(bash -n:*)"
+      "Bash(bash -n:*)",
+      "Bash(ls:*)"
     ]
   }
 }

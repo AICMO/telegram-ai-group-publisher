@@ -6,17 +6,15 @@ Stateless pipeline: read Telegram channels → LLM curates digest → publish to
 ## Architecture
 - `agent/integrations/telegram/telegram.py` — Telegram I/O (read channels, publish digest)
 - `.github/prompts/curate-digest.md` — Prompt template (controls what LLM produces)
-- `.github/scripts/` — Reusable LLM scripts (API fallback path)
+- `.github/actions/llm-pipeline/` — Reusable composite action (build prompt → call LLM → parse response)
 - `.github/workflows/process-telegram.yml` — CI pipeline (4h cron)
 
 ## Pipeline
 ```
 1. Read      telegram.py --read --since 6    → /tmp/telegram_messages.json
-2. Build     llm-prompt-build.sh              → /tmp/user_prompt.txt
-3. Curate    claude-code-action (OAuth)        → /tmp/llm_response.txt
-             OR llm-call.sh (API fallback)
-4. Parse     llm-response-parse.sh            → /tmp/llm_response.txt
-5. Publish   telegram.py --post               → Telegram channel
+2. LLM       .github/actions/llm-pipeline     → /tmp/llm_response.txt
+              (build prompt → OAuth or API → parse)
+3. Publish   telegram.py --post               → Telegram channel
 ```
 
 ## LLM Auth

@@ -19,15 +19,6 @@ concurrency:
   group: telegram-pipeline
   cancel-in-progress: false
 
-env:
-  PROMPT_FILE: .github/prompts/curate-digest.md
-  DATA_FILE: /tmp/telegram_messages.json
-  PROMPT_BUILT: /tmp/user_prompt.txt
-  LLM_RESPONSE_FILE: /tmp/llm_response.txt
-  PROVIDER: ${{ vars.LLM_PROVIDER || 'claude' }}
-  MODEL: ${{ vars.LLM_MODEL || 'claude-sonnet-4-5-20250929' }}
-  MAX_TOKENS: ${{ vars.LLM_MAX_TOKENS || 4096 }}
-
 permissions:
   contents: read
   id-token: write  # Required for Claude Code Action OIDC
@@ -43,93 +34,36 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
-        run: pip install -r agent/integrations/telegram/requirements.txt
-
-      # --- Read ---
       - name: Read channels
-        working-directory: agent/integrations/telegram
         run: |
-          SINCE=${{ github.event.inputs.since_hours || '6' }}
-          python telegram.py --read --since "$SINCE"
+          cd agent/integrations/telegram
+          pip install -r requirements.txt
+          python telegram.py --read --since ${{ github.event.inputs.since_hours || '6' }}
 
-      # --- Build prompt ---
-      - name: Build prompt
-        env:
-          PROMPT_FILE: ${{ env.PROMPT_FILE }}
-          DATA_FILE: ${{ env.DATA_FILE }}
-          PROMPT_FILE_TMP_WITH_DATA: ${{ env.PROMPT_BUILT }}
-        run: .github/scripts/llm-prompt-build.sh
-
-      # --- Check LLM auth method ---
-      - name: Check auth method
-        id: auth
-        env:
-          PROVIDER: ${{ env.PROVIDER }}
-          OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          if [[ "$PROVIDER" == "claude" && -n "$OAUTH_TOKEN" ]]; then
-            echo "USE_OAUTH=true" >> $GITHUB_OUTPUT
-          else
-            echo "USE_OAUTH=false" >> $GITHUB_OUTPUT
-          fi
-
-      # --- Curate: Claude Code Action (OAuth) ---
-      - name: Read prompt for Claude Action
-        id: read_prompt
-        if: steps.auth.outputs.USE_OAUTH == 'true'
-        run: |
-          DELIMITER="PROMPT_EOF_$(uuidgen | tr -d '-')"
-          {
-            echo "PROMPT_CONTENT<<${DELIMITER}"
-            cat "${{ env.PROMPT_BUILT }}"
-            echo "${DELIMITER}"
-          } >> $GITHUB_OUTPUT
-
-      - name: Curate digest (Claude OAuth)
-        id: llm_oauth
-        if: steps.auth.outputs.USE_OAUTH == 'true'
-        uses: anthropics/claude-code-action@v1
+      # --- LLM Pipeline ---
+      - name: Generate digest
+        uses: ./.github/actions/llm-pipeline
         with:
+          prompt_file: .github/prompts/curate-digest.md
+          data_file: /tmp/telegram_messages.json
+          output_file: /tmp/llm_response.txt
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            ${{ steps.read_prompt.outputs.PROMPT_CONTENT }}
-            ---
-            Respond with ONLY the curated digest text (no code fences, no explanations).
-          claude_args: |
-            --model ${{ vars.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929' }}
-            --max-turns 5
-
-      # --- Curate: API fallback ---
-      - name: Curate digest (API)
-        if: steps.auth.outputs.USE_OAUTH != 'true'
-        env:
-          PROMPT_FILE_TMP_WITH_DATA: ${{ env.PROMPT_BUILT }}
-          PROVIDER: ${{ env.PROVIDER }}
-          MODEL: ${{ env.MODEL }}
-          MAX_TOKENS: ${{ env.MAX_TOKENS }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
-          VERTEX_PROJECT: ${{ vars.VERTEX_PROJECT }}
-          VERTEX_REGION: ${{ vars.VERTEX_REGION }}
-        run: .github/scripts/llm-call.sh > /tmp/llm_raw.txt
-
-      # --- Parse response (handles both sources) ---
-      - name: Parse response
-        env:
-          LLM_API_RESPONSE_FILE: /tmp/llm_raw.txt
-          LLM_RESPONSE_CLAUDE_EXEC_FILE: ${{ steps.llm_oauth.outputs.execution_file }}
-          LLM_RESPONSE_PARSED: ${{ env.LLM_RESPONSE_FILE }}
-        run: .github/scripts/llm-response-parse.sh
+          provider: ${{ vars.LLM_PROVIDER || 'claude' }}
+          model: ${{ vars.LLM_MODEL || 'claude-sonnet-4-6' }}
+          max_tokens: ${{ vars.LLM_MAX_TOKENS || '12,288' }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          google_api_key: ${{ secrets.GOOGLE_API_KEY }}
+          google_application_credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
+          vertex_project: ${{ vars.VERTEX_PROJECT }}
+          vertex_region: ${{ vars.VERTEX_REGION }}
 
       # --- Publish ---
       - name: Publish digest
