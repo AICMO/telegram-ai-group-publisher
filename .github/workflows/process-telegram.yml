@@ -1,0 +1,85 @@
+name: Process Telegram
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # Every 4 hours
+  workflow_dispatch:
+    inputs:
+      since_hours:
+        description: 'Hours to look back'
+        required: false
+        default: '6'
+      skip_publish:
+        description: 'Skip publish step'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: telegram-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    env:
+      TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+      TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+      TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
+      TELEGRAM_PUBLISH_CHANNEL: ${{ secrets.TELEGRAM_PUBLISH_CHANNEL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r agent/integrations/telegram/requirements.txt
+
+      # --- Read ---
+      - name: Read channels
+        working-directory: agent/integrations/telegram
+        run: |
+          SINCE=${{ github.event.inputs.since_hours || '6' }}
+          python telegram.py --read --since "$SINCE"
+
+      # --- Build prompt ---
+      - name: Build prompt
+        env:
+          PROMPT_FILE: .github/prompts/curate-digest.md
+          DATA_FILE: /tmp/telegram_messages.json
+        run: |
+          chmod +x .github/scripts/llm-prompt-build.sh
+          .github/scripts/llm-prompt-build.sh
+
+      # --- Call LLM ---
+      - name: Call LLM
+        env:
+          PROVIDER: claude
+          PROMPT_FILE_TMP_WITH_DATA: /tmp/user_prompt.txt
+        run: |
+          chmod +x .github/scripts/llm-call.sh
+          .github/scripts/llm-call.sh > /tmp/llm_raw.txt
+
+      # --- Parse response ---
+      - name: Parse response
+        env:
+          LLM_API_RESPONSE_FILE: /tmp/llm_raw.txt
+          LLM_RESPONSE_PARSED: /tmp/llm_response.txt
+        run: |
+          chmod +x .github/scripts/llm-response-parse.sh
+          .github/scripts/llm-response-parse.sh
+
+      # --- Publish ---
+      - name: Publish digest
+        if: ${{ github.event.inputs.skip_publish != 'true' }}
+        working-directory: agent/integrations/telegram
+        run: python telegram.py --post

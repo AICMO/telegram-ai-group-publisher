@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Telegram session files
+*.session
+*.session-journal
+
+# Environment variables
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent outputs (tracked selectively)
+agent/outputs/telegram/raw/*.json
+agent/outputs/telegram/pending/*.json
+agent/outputs/telegram/posted/*.json
+agent/outputs/telegram/skipped/*.json
+
+# Keep output directories
+!agent/outputs/telegram/raw/.gitkeep
+!agent/outputs/telegram/pending/.gitkeep
+!agent/outputs/telegram/posted/.gitkeep
+!agent/outputs/telegram/skipped/.gitkeep
+
+# Memory (future agent layer)
+agent/memory/research/*
+agent/memory/learnings/*
+agent/memory/hypotheses/*
+!agent/memory/research/.gitkeep
+!agent/memory/learnings/.gitkeep
+!agent/memory/hypotheses/.gitkeep
