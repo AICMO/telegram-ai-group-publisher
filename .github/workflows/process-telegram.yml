@@ -19,8 +19,18 @@ concurrency:
   group: telegram-pipeline
   cancel-in-progress: false
 
+env:
+  PROMPT_FILE: .github/prompts/curate-digest.md
+  DATA_FILE: /tmp/telegram_messages.json
+  PROMPT_BUILT: /tmp/user_prompt.txt
+  LLM_RESPONSE_FILE: /tmp/llm_response.txt
+  PROVIDER: ${{ vars.LLM_PROVIDER || 'claude' }}
+  MODEL: ${{ vars.LLM_MODEL || 'claude-sonnet-4-5-20250929' }}
+  MAX_TOKENS: ${{ vars.LLM_MAX_TOKENS || 4096 }}
+
 permissions:
   contents: read
+  id-token: write  # Required for Claude Code Action OIDC
 
 jobs:
   process:
@@ -29,8 +39,7 @@ jobs:
       TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
       TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
       TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
-      TELEGRAM_PUBLISH_CHANNEL: ${{ secrets.TELEGRAM_PUBLISH_CHANNEL }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TELEGRAM_PUBLISH_CHANNEL: ${{ vars.TELEGRAM_PUBLISH_CHANNEL }}
 
     steps:
       - name: Checkout
@@ -54,29 +63,73 @@ jobs:
       # --- Build prompt ---
       - name: Build prompt
         env:
-          PROMPT_FILE: .github/prompts/curate-digest.md
-          DATA_FILE: /tmp/telegram_messages.json
-        run: |
-          chmod +x .github/scripts/llm-prompt-build.sh
-          .github/scripts/llm-prompt-build.sh
+          PROMPT_FILE: ${{ env.PROMPT_FILE }}
+          DATA_FILE: ${{ env.DATA_FILE }}
+          PROMPT_FILE_TMP_WITH_DATA: ${{ env.PROMPT_BUILT }}
+        run: .github/scripts/llm-prompt-build.sh
 
-      # --- Call LLM ---
-      - name: Call LLM
+      # --- Check LLM auth method ---
+      - name: Check auth method
+        id: auth
         env:
-          PROVIDER: claude
-          PROMPT_FILE_TMP_WITH_DATA: /tmp/user_prompt.txt
+          PROVIDER: ${{ env.PROVIDER }}
+          OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          chmod +x .github/scripts/llm-call.sh
-          .github/scripts/llm-call.sh > /tmp/llm_raw.txt
+          if [[ "$PROVIDER" == "claude" && -n "$OAUTH_TOKEN" ]]; then
+            echo "USE_OAUTH=true" >> $GITHUB_OUTPUT
+          else
+            echo "USE_OAUTH=false" >> $GITHUB_OUTPUT
+          fi
 
-      # --- Parse response ---
+      # --- Curate: Claude Code Action (OAuth) ---
+      - name: Read prompt for Claude Action
+        id: read_prompt
+        if: steps.auth.outputs.USE_OAUTH == 'true'
+        run: |
+          DELIMITER="PROMPT_EOF_$(uuidgen | tr -d '-')"
+          {
+            echo "PROMPT_CONTENT<<${DELIMITER}"
+            cat "${{ env.PROMPT_BUILT }}"
+            echo "${DELIMITER}"
+          } >> $GITHUB_OUTPUT
+
+      - name: Curate digest (Claude OAuth)
+        id: llm_oauth
+        if: steps.auth.outputs.USE_OAUTH == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            ${{ steps.read_prompt.outputs.PROMPT_CONTENT }}
+            ---
+            Respond with ONLY the curated digest text (no code fences, no explanations).
+          claude_args: |
+            --model ${{ vars.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929' }}
+            --max-turns 5
+
+      # --- Curate: API fallback ---
+      - name: Curate digest (API)
+        if: steps.auth.outputs.USE_OAUTH != 'true'
+        env:
+          PROMPT_FILE_TMP_WITH_DATA: ${{ env.PROMPT_BUILT }}
+          PROVIDER: ${{ env.PROVIDER }}
+          MODEL: ${{ env.MODEL }}
+          MAX_TOKENS: ${{ env.MAX_TOKENS }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
+          VERTEX_PROJECT: ${{ vars.VERTEX_PROJECT }}
+          VERTEX_REGION: ${{ vars.VERTEX_REGION }}
+        run: .github/scripts/llm-call.sh > /tmp/llm_raw.txt
+
+      # --- Parse response (handles both sources) ---
       - name: Parse response
         env:
           LLM_API_RESPONSE_FILE: /tmp/llm_raw.txt
-          LLM_RESPONSE_PARSED: /tmp/llm_response.txt
-        run: |
-          chmod +x .github/scripts/llm-response-parse.sh
-          .github/scripts/llm-response-parse.sh
+          LLM_RESPONSE_CLAUDE_EXEC_FILE: ${{ steps.llm_oauth.outputs.execution_file }}
+          LLM_RESPONSE_PARSED: ${{ env.LLM_RESPONSE_FILE }}
+        run: .github/scripts/llm-response-parse.sh
 
       # --- Publish ---
       - name: Publish digest

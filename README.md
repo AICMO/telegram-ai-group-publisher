@@ -1,11 +1,11 @@
 # Telegram AI Content Curator & Publisher
 
-Stateless pipeline: reads your Telegram channels, sends messages to an LLM to curate a digest, publishes the result to a target channel.
+Stateless pipeline: reads your Telegram channels, Claude curates a digest, publishes to a target channel.
 
 ## How it works
 
 1. **Read** — Reads all subscribed broadcast channels → `/tmp/telegram_messages.json`
-2. **LLM** — Sends messages + prompt to LLM → gets back curated digest text
+2. **Curate** — Claude Code Action reads messages + prompt → writes digest to `/tmp/llm_response.txt`
 3. **Publish** — Posts the digest to your target Telegram channel
 
 Runs on a 4-hour cron via GitHub Actions. No persistent state.
@@ -27,38 +27,23 @@ export TELEGRAM_PHONE="+your_phone_number"
 python agent/integrations/telegram/setup_session.py
 ```
 
-### 3. Set up GitHub secrets
+### 3. Create a target channel
+
+In Telegram: Menu → New Channel → make it Public → set a username (e.g. `my_ai_digest`).
+
+### 4. Set up GitHub secrets
 
 | Secret | Description |
 |--------|-------------|
 | `TELEGRAM_API_ID` | Numeric API ID |
 | `TELEGRAM_API_HASH` | API hash string |
 | `TELEGRAM_SESSION_STRING` | Output from `setup_session.py` |
-| `TELEGRAM_PUBLISH_CHANNEL` | Target channel (e.g. `@my_channel`) |
-| `ANTHROPIC_API_KEY` | Claude API key |
+| `TELEGRAM_PUBLISH_CHANNEL` | Target channel (e.g. `@my_ai_digest`) |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code OAuth token (or `ANTHROPIC_API_KEY` as fallback) |
 
-### 4. Run
+### 5. Run
 
 Runs automatically every 4 hours. Manual: Actions → "Process Telegram" → Run workflow.
-
-## Local usage
-
-```bash
-pip install -r agent/integrations/telegram/requirements.txt
-
-# 1. Read channels
-python agent/integrations/telegram/telegram.py --read --since 24
-
-# 2-4. LLM pipeline
-PROMPT_FILE=.github/prompts/curate-digest.md DATA_FILE=/tmp/telegram_messages.json \
-  .github/scripts/llm-prompt-build.sh
-PROVIDER=claude .github/scripts/llm-call.sh > /tmp/llm_raw.txt
-LLM_API_RESPONSE_FILE=/tmp/llm_raw.txt LLM_RESPONSE_PARSED=/tmp/llm_response.txt \
-  .github/scripts/llm-response-parse.sh
-
-# 5. Publish
-python agent/integrations/telegram/telegram.py --post
-```
 
 ## Project structure
 
@@ -68,11 +53,7 @@ agent/integrations/telegram/
   setup_session.py         # one-time auth → StringSession
   requirements.txt         # telethon, cryptg
 .github/
-  prompts/curate-digest.md # LLM prompt (controls output)
-  scripts/
-    llm-call.sh            # multi-provider LLM caller
-    llm-prompt-build.sh    # assembles prompt + data
-    llm-response-parse.sh  # strips code fences, validates
+  prompts/curate-digest.md # prompt (controls what Claude produces)
   workflows/
     process-telegram.yml   # cron pipeline
 ```
