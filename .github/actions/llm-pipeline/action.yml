@@ -71,18 +71,6 @@ runs:
         fi
 
     # 3. Call LLM (OAuth)
-    - name: Read prompt for Claude Action
-      id: read_prompt
-      if: steps.auth.outputs.USE_OAUTH == 'true'
-      shell: bash
-      run: |
-        DELIMITER="PROMPT_EOF_$(uuidgen | tr -d '-')"
-        {
-          echo "PROMPT_CONTENT<<${DELIMITER}"
-          cat /tmp/user_prompt.txt
-          echo "${DELIMITER}"
-        } >> $GITHUB_OUTPUT
-
     - name: Call LLM (OAuth)
       id: llm_oauth
       if: steps.auth.outputs.USE_OAUTH == 'true'
@@ -90,9 +78,8 @@ runs:
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
         prompt: |
-          ${{ steps.read_prompt.outputs.PROMPT_CONTENT }}
-          ---
-          Respond with ONLY the curated digest text (no code fences, no explanations).
+          Read the file /tmp/user_prompt.txt and follow the instructions in it.
+          Respond with ONLY the requested output (no code fences, no explanations).
         claude_args: |
           --model ${{ inputs.model }}
           --max-turns 5

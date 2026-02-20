@@ -62,10 +62,14 @@ async def cmd_read(since_hours: float):
     print(f"Logged in as {me.first_name} (@{me.username or 'no_username'})")
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=since_hours)
+    publish_channel = os.environ.get("TELEGRAM_PUBLISH_CHANNEL", "").lstrip("@").lower()
 
     channels = []
     async for dialog in client.iter_dialogs():
         if isinstance(dialog.entity, Channel) and dialog.entity.broadcast:
+            username = (getattr(dialog.entity, "username", None) or "").lower()
+            if username and username == publish_channel:
+                continue
             channels.append(dialog)
 
     print(f"Scanning {len(channels)} channels since {cutoff.strftime('%Y-%m-%d %H:%M UTC')}...\n")
@@ -188,6 +192,33 @@ async def cmd_post():
 
 
 # ============================================================
+# LIST CHANNELS: --list-channels
+# ============================================================
+
+async def cmd_list_channels():
+    client = get_telegram_client()
+    await client.connect()
+
+    if not await client.is_user_authorized():
+        print("ERROR: Session is not authorized. Run setup_session.py first.")
+        await client.disconnect()
+        return
+
+    channels = []
+    async for dialog in client.iter_dialogs():
+        if isinstance(dialog.entity, Channel) and dialog.entity.broadcast:
+            channels.append(dialog)
+
+    print(f"Found {len(channels)} channels:\n")
+    for d in sorted(channels, key=lambda x: x.title.lower()):
+        username = getattr(d.entity, "username", None)
+        handle = f"@{username}" if username else "(no username)"
+        print(f"  {d.title}  {handle}")
+
+    await client.disconnect()
+
+
+# ============================================================
 # CLI
 # ============================================================
 
@@ -196,13 +227,16 @@ def main():
     parser.add_argument("--read", action="store_true", help="Read channels → /tmp/telegram_messages.json")
     parser.add_argument("--since", type=float, default=6, help="Hours to look back (default: 6)")
     parser.add_argument("--post", action="store_true", help="Publish /tmp/llm_response.txt to channel")
+    parser.add_argument("--list-channels", action="store_true", help="List all subscribed broadcast channels")
     args = parser.parse_args()
 
-    if not any([args.read, args.post]):
+    if not any([args.read, args.post, args.list_channels]):
         parser.print_help()
         sys.exit(1)
 
-    if args.read:
+    if args.list_channels:
+        asyncio.run(cmd_list_channels())
+    elif args.read:
         asyncio.run(cmd_read(args.since))
     elif args.post:
         asyncio.run(cmd_post())
