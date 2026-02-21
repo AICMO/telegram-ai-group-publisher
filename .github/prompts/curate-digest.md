@@ -27,15 +27,15 @@ Write the digest as ready-to-publish Telegram text:
 📊 Collected N (out of M) items for you
 
 — 🚀Quick Summary 🚀 —
-• Summary 1
-• Summary 2
+1. Summary 1
+2. Summary 2
 
 — ✅Details ✅—
-▸ Summary of first message
-  link: https://t.me/...
+1. Summary of first message
+   link: https://t.me/...
 
-▸ Summary of second message
-  link: https://t.me/...
+2. Summary of second message
+   link: https://t.me/...
 
 
 ## Examples of good input content (select these)
@@ -57,31 +57,31 @@ Fun failure — AWS's own AI agent Kiro suggested “delete and recreate the env
 📊 Collected 6 (out of 42) items for you
 
 — 🚀Quick Summary 🚀 —
-• 🔧 3 must-try AI tools: OpenClaw, Engineering Harness, Context Graphs
-• 🦀 Codex rewrites C++ to Rust — impossible task done in 13h human+AI
-• 🤖 Building a personal AI librarian with Codex + GitHub repo
-• 🚀 Gemini 3.1 Pro: 77% ARC-AGI-2, animated SVG generation
-• 🤝 OpenAI hires OpenClaw creator, multi-agent becomes core strategy
-• 💥 AWS AI agent nukes prod — approved without second review
+1. 🔧 3 must-try AI tools: OpenClaw, Engineering Harness, Context Graphs
+2. 🦀 Codex rewrites C++ to Rust — impossible task done in 13h human+AI
+3. 🤖 Building a personal AI librarian with Codex + GitHub repo
+4. 🚀 Gemini 3.1 Pro: 77% ARC-AGI-2, animated SVG generation
+5. 🤝 OpenAI hires OpenClaw creator, multi-agent becomes core strategy
+6. 💥 AWS AI agent nukes prod — approved without second review
 
 — ✅Details ✅—
-▸ 🔧 Curated must-try list: install OpenClaw for Telegram/WhatsApp, read Hashimoto's AI Adoption Journey and OpenAI's Harness Engineering, explore Foundation Capital's context graphs for agent trajectories
-  link: https://t.me/llm_under_hood/750
+1. 🔧 Curated must-try list: install OpenClaw for Telegram/WhatsApp, read Hashimoto's AI Adoption Journey and OpenAI's Harness Engineering, explore Foundation Capital's context graphs for agent trajectories
+   link: https://t.me/llm_under_hood/750
 
-▸ 🦀 Codex rewrites molecular algorithm from C++ to Rust — 10h AI + 3h human for a task that was literally impossible solo. Key insight: strict planning and detailed prompts were essential, without them the AI produced nothing useful
-  link: https://t.me/some_channel/123
+2. 🦀 Codex rewrites molecular algorithm from C++ to Rust — 10h AI + 3h human for a task that was literally impossible solo. Key insight: strict planning and detailed prompts were essential, without them the AI produced nothing useful
+   link: https://t.me/some_channel/123
 
-▸ 🤖 Personal AI assistant as GitHub repo managed by Codex — voice capture works, autonomous agents still rough. Implanted OpenClaw's SOUL_MD, agent now self-improves its own processes
-  link: https://t.me/llm_under_hood/746
+3. 🤖 Personal AI assistant as GitHub repo managed by Codex — voice capture works, autonomous agents still rough. Implanted OpenClaw's SOUL_MD, agent now self-improves its own processes
+   link: https://t.me/llm_under_hood/746
 
-▸ 🚀 Google ships Gemini 3.1 Pro — 77.1% on ARC-AGI-2 (2x previous), animated SVG from text, available via API/CLI/AI Studio
-  link: https://t.me/some_channel/456
+4. 🚀 Google ships Gemini 3.1 Pro — 77.1% on ARC-AGI-2 (2x previous), animated SVG from text, available via API/CLI/AI Studio
+   link: https://t.me/some_channel/456
 
-▸ 🤝 Sam Altman hires OpenClaw creator Peter Steinberger — multi-agent interaction “will quickly become core product line.” Irony: OpenClaw still recommends Claude Opus
-  link: https://t.me/some_channel/789
+5. 🤝 Sam Altman hires OpenClaw creator Peter Steinberger — multi-agent interaction “will quickly become core product line.” Irony: OpenClaw still recommends Claude Opus
+   link: https://t.me/some_channel/789
 
-▸ 💥 AWS AI agent Kiro suggested “delete and recreate” in production, engineers approved without second review. Amazon says “user error” — but the real issue is the system allowed it
-  link: https://t.me/some_channel/101
+6. 💥 AWS AI agent Kiro suggested “delete and recreate” in production, engineers approved without second review. Amazon says “user error” — but the real issue is the system allowed it
+   link: https://t.me/some_channel/101
 
 
 Return ONLY the digest text, no other commentary.
