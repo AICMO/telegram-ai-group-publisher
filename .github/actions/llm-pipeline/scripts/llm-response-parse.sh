@@ -46,6 +46,14 @@ fi
 # Strip code fences (LLMs sometimes wrap output in ```markdown ... ```)
 CONTENT=$(echo "$CONTENT" | sed '/^```[a-zA-Z]*$/d; /^```$/d')
 
+# Guard: detect error messages that should never be published
+ERROR_PATTERNS="outside the allowed working directory|cannot be accessed|I cannot|I'm unable to|error occurred|ENOENT|No such file"
+if echo "$CONTENT" | grep -qiE "$ERROR_PATTERNS"; then
+  echo "::error::LLM response looks like an error, not valid content:" >&2
+  echo "$CONTENT" | head -5 >&2
+  exit 1
+fi
+
 # Save cleaned content
 echo "$CONTENT" > "$LLM_RESPONSE_PARSED"
 

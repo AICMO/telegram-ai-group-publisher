@@ -50,13 +50,13 @@ outputs:
 runs:
   using: composite
   steps:
-    # 1. Build prompt
+    # 1. Build prompt (inside workspace so claude-code-action can access it)
     - name: Build prompt
       shell: bash
       env:
         PROMPT_FILE: ${{ inputs.prompt_file }}
         DATA_FILE: ${{ inputs.data_file }}
-        PROMPT_FILE_TMP_WITH_DATA: /tmp/user_prompt.txt
+        PROMPT_FILE_TMP_WITH_DATA: ${{ github.workspace }}/.llm_user_prompt.txt
       run: ${{ github.action_path }}/scripts/llm-prompt-build.sh
 
     # 2. Auth check
@@ -78,7 +78,7 @@ runs:
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
         prompt: |
-          Read the file /tmp/user_prompt.txt and follow the instructions in it.
+          Read the file .llm_user_prompt.txt and follow the instructions in it.
           Respond with ONLY the requested output (no code fences, no explanations).
         claude_args: |
           --model ${{ inputs.model }}
@@ -89,7 +89,7 @@ runs:
       if: steps.auth.outputs.USE_OAUTH != 'true'
       shell: bash
       env:
-        PROMPT_FILE_TMP_WITH_DATA: /tmp/user_prompt.txt
+        PROMPT_FILE_TMP_WITH_DATA: ${{ github.workspace }}/.llm_user_prompt.txt
         PROVIDER: ${{ inputs.provider }}
         MODEL: ${{ inputs.model }}
         MAX_TOKENS: ${{ inputs.max_tokens }}
