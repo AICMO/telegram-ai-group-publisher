@@ -82,7 +82,7 @@ runs:
           Respond with ONLY the requested output (no code fences, no explanations).
         claude_args: |
           --model ${{ inputs.model }}
-          --max-turns 5
+          --max-turns 15
 
     # 4. Call LLM (API fallback)
     - name: Call LLM (API)
